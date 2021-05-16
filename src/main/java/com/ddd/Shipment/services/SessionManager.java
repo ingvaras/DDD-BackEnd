@@ -21,15 +21,19 @@ public class SessionManager {
     }
 
     public User authenticate(SessionToken sessionToken) {
-        List<User> users = userMapper.selectAll();
-        if(users.stream()
-                .filter((usr) -> (sessionToken.getSessionToken().equals(usr.getSessionToken())))
-                .count() == 1) {
-            return users.stream()
+        try {
+            List<User> users = userMapper.selectAll();
+            if (users.stream()
                     .filter((usr) -> (sessionToken.getSessionToken().equals(usr.getSessionToken())))
-                    .collect(Collectors.toList())
-                    .get(0);
-        } else {
+                    .count() == 1) {
+                return users.stream()
+                        .filter((usr) -> (sessionToken.getSessionToken().equals(usr.getSessionToken())))
+                        .collect(Collectors.toList())
+                        .get(0);
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
             return null;
         }
     }

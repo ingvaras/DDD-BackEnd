@@ -17,6 +17,8 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -43,7 +45,7 @@ public class OrderController {
 
 
     @Path("/order")
-    @GET
+    @PUT
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response fetchOrders(SessionToken sessionToken) {
@@ -79,7 +81,7 @@ public class OrderController {
     @Produces(MediaType.APPLICATION_JSON)
     public Response createOrder(OrderRequest orderRequest) {
         User user = sessionManager.authenticate(new SessionToken(orderRequest.getSessionToken()));
-        if(user != null) {
+        if(user != null || orderRequest.getSessionToken() == null) {
             try {
                 Orders newOrder = new Orders();
                 newOrder.setSenderAddressId(orderRequest.getSenderAddressId());
@@ -109,7 +111,20 @@ public class OrderController {
                 newOrder.setParcelInfoId(parcelInfoId);
 
                 ordersMapper.insert(newOrder);
-
+                Orders order = ordersMapper.selectAll().stream().filter((ord) -> ord.getTrackingNumber().equals(newOrder.getTrackingNumber()))
+                        .collect(Collectors.toList()).get(0);
+                ShipmentEvent event1 = new ShipmentEvent();
+                event1.setOrderId(order.getId());
+                event1.setDate(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").format(LocalDateTime.now()));
+                event1.setCity("Vilnius");
+                event1.setOrderState("Shipment details successfully registered.");
+                shipmentEventMapper.insert(event1);
+                ShipmentEvent event2 = new ShipmentEvent();
+                event2.setOrderId(order.getId());
+                event2.setDate(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").format(LocalDateTime.now().plusMinutes(2)));
+                event2.setCity("Vilnius");
+                event2.setOrderState("Shipment delivered to post machine by the sender.");
+                shipmentEventMapper.insert(event2);
                 return Response.ok(newOrder.getTrackingNumber()).build();
             } catch (Exception e) {
                 return Response.status(500, "Internal Server Fault").build();
