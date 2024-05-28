@@ -1,4 +1,4 @@
-package com.ddd.Shipment.rest;
+package com.ddd.Shipment.rest.util;
 
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.container.ContainerResponseContext;

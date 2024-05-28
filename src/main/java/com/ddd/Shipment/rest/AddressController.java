@@ -1,15 +1,13 @@
 package com.ddd.Shipment.rest;
 
-import com.ddd.Shipment.mybatis.dao.AddressMapper;
 import com.ddd.Shipment.mybatis.model.Address;
 import com.ddd.Shipment.mybatis.model.User;
 import com.ddd.Shipment.rest.contracts.AddressRequest;
 import com.ddd.Shipment.rest.contracts.AddressResponse;
 import com.ddd.Shipment.rest.contracts.SessionToken;
+import com.ddd.Shipment.rest.exception.UserUnauthorizedException;
+import com.ddd.Shipment.services.AddressService;
 import com.ddd.Shipment.services.SessionManager;
-import org.apache.ibatis.io.Resources;
-import org.apache.ibatis.session.SqlSession;
-import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.ws.rs.*;
@@ -23,12 +21,11 @@ import java.util.stream.Collectors;
 @Path("/")
 public class AddressController {
 
-    private final AddressMapper addressMapper;
+    private final AddressService addressService;
     private final SessionManager sessionManager;
 
     public AddressController() throws IOException {
-        SqlSession session = new SqlSessionFactoryBuilder().build(Resources.getResourceAsReader("MyBatisConfig.xml")).openSession();
-        addressMapper = session.getMapper(AddressMapper.class);
+        addressService = new AddressService();
         sessionManager = new SessionManager();
     }
 
@@ -36,47 +33,43 @@ public class AddressController {
     @PUT
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response fetchAddresses(SessionToken sessionToken) {
+    public Response fetchAddresses(SessionToken sessionToken) throws UserUnauthorizedException {
         User user = sessionManager.authenticate(sessionToken);
-        if(user != null) {
-            List<Address> addresses = addressMapper.selectAll()
-                    .stream().filter((address) -> (address.getUserId().equals(user.getId())))
-                    .collect(Collectors.toList());
-            List<AddressResponse> addressesResponse = addresses
-                    .stream().map((address) -> new AddressResponse(address.getId(), address.getCity(), address.getAddress(), address.getPostalCode()))
-                    .collect(Collectors.toList());
-            return Response.ok(addressesResponse).build();
-        }
-        return Response.status(401).entity("User unauthorized for this action").build();
+
+        List<Address> addresses = addressService.fetchAddresses(user);
+        List<AddressResponse> addressesResponse = addresses
+                .stream().map((address) -> new AddressResponse(address.getId(), address.getCity(), address.getAddress(), address.getPostalCode()))
+                .collect(Collectors.toList());
+        return Response.ok(addressesResponse).build();
     }
 
 
     @Path("/address")
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response addAddress(AddressRequest request) {
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response addAddress(AddressRequest request) throws UserUnauthorizedException {
         User user = sessionManager.authenticate(new SessionToken(request.getSessionToken()));
-        if(user != null) {
-            Address newAddress = new Address();
-            newAddress.setCity(request.getCity());
-            newAddress.setAddress(request.getAddress());
-            newAddress.setPostalCode(request.getPostalCode());
-            newAddress.setUserId(user.getId());
-            addressMapper.insert(newAddress);
-            return Response.status(201).build();
-        }
-        return Response.status(401).entity("User unauthorized for this action").build();
+
+        Address newAddress = new Address();
+        newAddress.setCity(request.getCity());
+        newAddress.setAddress(request.getAddress());
+        newAddress.setPostalCode(request.getPostalCode());
+        newAddress.setUserId(user.getId());
+
+        addressService.createAddress(newAddress);
+
+        return Response.status(201).build();
     }
 
     @Path("/address/{id}")
     @DELETE
-    @Consumes
-    public Response addAddress(@PathParam("id") Integer id, SessionToken sessionToken) {
-        User user = sessionManager.authenticate(sessionToken);
-        if(user != null) {
-            addressMapper.deleteByPrimaryKey(id);
-            return Response.status(204).build();
-        }
-        return Response.status(401).entity("User unauthorized for this action").build();
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deleteAddress(@PathParam("id") Integer id, SessionToken sessionToken) throws UserUnauthorizedException {
+        sessionManager.authenticate(sessionToken);
+
+        addressService.deleteAddress(id);
+        return Response.status(204).build();
     }
 }

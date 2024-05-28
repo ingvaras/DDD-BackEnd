@@ -5,7 +5,7 @@
       <configuration>
         <setting name="validation-enabled" value="true" />
         <datasource-mapping>
-          <factory-entry name="Shipment" value="869b265e-7730-49d5-9130-9f02cc13e11a" />
+          <factory-entry name="Shipment" value="fc1b16e5-0328-40fe-a4f3-62e695c089ae" />
         </datasource-mapping>
         <naming-strategy-map />
       </configuration>
